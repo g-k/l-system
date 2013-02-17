@@ -6,11 +6,6 @@ var barnsley = function (context) {
   context.fillRect(scaled[0], scaled[1], 1, 1);
 };
 
-var iterations = 3;
-var angle = 90;
-var axiom = "-F";
-var d = 5;
-
 var degreesToRadians = function (degrees) {
   return (degrees / 180) * Math.PI;
 };
@@ -34,6 +29,23 @@ var commandMap = {
 
     context.lineTo(state.x, state.y);
     return state;
+  },
+  "[": function (state) {
+    // push onto stack
+    state.stack.push({
+      x: state.x,
+      y: state.y,
+      angle: state.angle
+    });
+    return state;
+  },
+  "]": function (state) {
+    // pop from stack
+    var newState = state.stack.pop();
+    state.x = newState.x;
+    state.y = newState.y;
+    state.angle = newState.angle;
+    return state;
   }
 };
 
@@ -45,7 +57,8 @@ var drawL = function (commands, context) {
   var state = {
     x: 0,
     y: 0,
-    angle: 0 // direction in degrees angle from horizontal
+    angle: 0, // direction in degrees angle from horizontal
+    stack: []
   };
   context.beginPath();
   for (var i = 0; i < commands.length; i++) {
@@ -55,6 +68,9 @@ var drawL = function (commands, context) {
   context.stroke();
 };
 
+
+var d = 6;
+var angle = 40;
 
 var main = function () {
   var context = a;
@@ -66,19 +82,23 @@ var main = function () {
   canvas.width = 500;
   canvas.height = 500;
 
-  // center
-  context.translate(canvas.width / 2, 5*d);
+  context.translate(canvas.width / 2, canvas.height / 2);
   context.translate(0.5, 0.5); // no AA
 
   console.log('hio', c.width, c.height);
-  var commands = "F+F+F+F+";
+
+  var iterations = 5;
+  var axiom = "-F";
+  var commands = axiom;
+  console.log(iterations, commands);
   while (iterations--) {
     commands = applyRule(commands, {
       from: "F",
-      to: "F+F-F-FF+F+F-F"
+      to: "F[-F]F[+F][F]"
     });
-    console.log(iterations, commands);    
+    console.log(iterations, commands);
   }
+  
   drawL(commands, context);
 };
 
