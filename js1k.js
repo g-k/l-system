@@ -11,6 +11,7 @@ var degreesToRadians = function (degrees) {
 };
 
 var commandMap = {
+
   "+": function (state) { 
     // rotate + angle    
     state.angle += angle;
@@ -21,6 +22,10 @@ var commandMap = {
     state.angle -= angle;
     return state;
   }, 
+  "X": function (state) {
+    // node rewriting
+    return state;
+  },
   "F": function (state, context) {
     context.moveTo(state.x, state.y);
     // move forward
@@ -70,7 +75,7 @@ var drawL = function (commands, context) {
 
 
 var d = 6;
-var angle = 40;
+var angle = 22.5;
 
 var main = function () {
   var context = a;
@@ -87,15 +92,19 @@ var main = function () {
 
   console.log('hio', c.width, c.height);
 
-  var iterations = 5;
-  var axiom = "-F";
+  var iterations = 3;
+  var axiom = "X";
   var commands = axiom;
   console.log(iterations, commands);
+  var rules = [
+    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
+    { from: "F", to: "FF" }
+  ];
+  var j;
   while (iterations--) {
-    commands = applyRule(commands, {
-      from: "F",
-      to: "F[-F]F[+F][F]"
-    });
+    for (j =0; j < rules.length; j++) {
+      commands = applyRule(commands, rules[j]);
+    }
     console.log(iterations, commands);
   }
   
