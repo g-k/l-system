@@ -1,6 +1,6 @@
-// start of submission //
+// start of submission
 // SCRIPT
-// Can use web workers http://caniuse.com/#search=web%20worker
+// Can use web workers http://caniuse.com/#search=web%20worker        
 
 var barnsley = function (context) {
   context.fillRect(scaled[0], scaled[1], 1, 1);
@@ -11,7 +11,6 @@ var degreesToRadians = function (degrees) {
 };
 
 var commandMap = {
-
   "+": function (state) { 
     // rotate + angle    
     state.angle += angle;
@@ -23,7 +22,7 @@ var commandMap = {
     return state;
   }, 
   "X": function (state) {
-    // node rewriting
+    // for node rewriting do nothing
     return state;
   },
   "F": function (state, context) {
@@ -68,19 +67,70 @@ var drawL = function (commands, context) {
   context.beginPath();
   for (var i = 0; i < commands.length; i++) {
     state = commandMap[commands[i]](state, context);
-    console.log(commands[i], state);
+    // console.log(commands[i], state);
   }
   context.stroke();
 };
 
 
-var d = 6;
-var angle = 22.5;
+var draw = function () {
+  var rules = [
+    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
+    { from: "F", to: "FF" }
+  ];
+  var iterations = options.iterations;
+  var commands = options.axiom;
+  var j;
 
-var main = function () {
-  var context = a;
-  var canvas = c;
+  while (iterations--) {
+    for (j =0; j < rules.length; j++) {
+      commands = applyRule(commands, rules[j]);
+    }
+    // console.log(iterations, commands);
+  }
 
+  // Account for earlier translation
+  options.context.clearRect(
+    -options.canvas.width / 2, -options.canvas.height / 2, 
+    options.canvas.width, options.canvas.height);
+  drawL(commands, options.context);  
+};
+
+var options = { 
+  d: 8,
+  angle: 22.5,
+  iterations: 0,
+  axiom: "X",
+  context: a, 
+  canvas: c
+};
+
+// expose for commands
+var d = options.d; 
+var angle = options.angle;
+
+
+var redrawControl = function (id) {
+  // A number control that redraws when it changes
+  var el = document.querySelector('#'+id);  
+
+  var redrawOnChange = function (event) {
+    window[id] = options[id] = event.target.valueAsNumber;
+    draw();
+  };
+  el.addEventListener('change', redrawOnChange, false);
+};
+
+var setupControls = function () {
+  redrawControl('iterations');
+  redrawControl('d');
+  redrawControl('angle');
+};
+
+
+var init = function () {
+  var canvas = options.canvas;
+  var context = options.context;
   canvas.style.border = "1px";
   canvas.style.borderColor = "gray";
   canvas.style.borderStyle = "solid";
@@ -90,26 +140,9 @@ var main = function () {
   context.translate(canvas.width / 2, canvas.height / 2);
   context.translate(0.5, 0.5); // no AA
 
-  console.log('hio', c.width, c.height);
-
-  var iterations = 3;
-  var axiom = "X";
-  var commands = axiom;
-  console.log(iterations, commands);
-  var rules = [
-    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
-    { from: "F", to: "FF" }
-  ];
-  var j;
-  while (iterations--) {
-    for (j =0; j < rules.length; j++) {
-      commands = applyRule(commands, rules[j]);
-    }
-    console.log(iterations, commands);
-  }
-  
-  drawL(commands, context);
+  console.log('hio', canvas.width, canvas.height);
+  setupControls();
 };
 
-main();
+init();
 // end of submission //
