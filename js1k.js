@@ -14,7 +14,6 @@ var redrawControl = function (control) {
 	options[target.id] = target.valueAsNumber;
       };
     }
-    console.log(control.updater);
 
     control.updater(event.target);
     draw();
@@ -92,12 +91,8 @@ var drawL = function (commands, context) {
 };
 
 
-var draw = function () {
-
-  var rules = [
-    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
-    { from: "F", to: "FF" }
-  ];
+var expandCommands = function (options) {
+  var rules = options.rules;
   var iterations = options.iterations;
   var commands = options.axiom;
   var j;
@@ -109,14 +104,63 @@ var draw = function () {
     // console.log(iterations, commands);
   }
 
+  return commands;
+};
+
+var draw3d = function (options) {
+  // projected on canvas x and y coordinates
+  var pX;
+  var pY;
+  var perspective = options.perspective;
+  var halfHeight = options.canvas.height / 2;
+  var halfWidth = options.canvas.width / 2;
+  var cameraZ = options.cameraZ;
+  var context = options.context;
+
+  var surface = function (a, b) {
+    // cylinder
+    var angle = a * Math.PI * 2,
+        radius = 100,
+        length = 400;
+
+    return {
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        z: b * length - length / 2, // by subtracting length/2 I have centered the tube at (0, 0, 0)
+        r: 0,
+        g: Math.floor(b * 255),
+        b: 0
+    };
+  };
+
+  for (var a = 0; a < 1; a += 0.001) {
+    for (var b = 0; b < 1; b += 0.01) {
+      var point = surface(a, b);
+      if (!point) {
+	continue;
+      }
+
+      pX = (point.x * perspective) / (point.z - cameraZ) + halfWidth;
+      pY = (point.y * perspective) / (point.z - cameraZ) + halfHeight;
+      context.fillStyle = 'rgb('+[point.r, point.g, point.b].join(',')+')';
+      context.fillRect(pX, pY, 1, 1);
+    }
+  }
+
+};
+
+
+var draw = function () {
   options.context.clearRect(0, 0, options.canvas.width, options.canvas.height);
 
-  context.translate(options.offset.x, options.offset.y);
+  // Move there
+  // context.translate(options.offset.x, options.offset.y);
 
-  drawL(commands, options.context);
+  // drawL(expandCommands(options), options.context);
+  draw3d(options);
 
   // Move back
-  context.translate(-options.offset.x, -options.offset.y);
+  // context.translate(-options.offset.x, -options.offset.y);
 };
 
 // Setup
@@ -134,12 +178,18 @@ var options = {
   angle: 22.5,
   iterations: 0,
   axiom: "X",
+  rules: [
+    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
+    { from: "F", to: "FF" }
+  ],
   context: a,
   canvas: c,
   offset: {
     x: c.width / 2,
     y: c.height / 2
-  }
+  },
+  perspective: 350,
+  cameraZ: -700
 };
 
 
@@ -154,6 +204,8 @@ var init = function (options) {
 
   var controls = [
     { id: 'iterations' },
+    { id: 'perspective' },
+    { id: 'cameraZ' },
     {
       id: 'distance',
       updater: function (target) {
@@ -182,6 +234,8 @@ var init = function (options) {
     }
   ];
   controls.forEach(function (control) { redrawControl(control); });
+
+  draw();
 };
 
 init(options);
