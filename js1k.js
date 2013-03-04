@@ -1,26 +1,45 @@
 // start of submission
 // SCRIPT
-// Can use web workers http://caniuse.com/#search=web%20worker        
+// Can use web workers http://caniuse.com/#search=web%20worker
 
-var barnsley = function (context) {
-  context.fillRect(scaled[0], scaled[1], 1, 1);
+// Tool UI
+
+var redrawControl = function (control) {
+  // A number control that redraws when it changes
+  var el = document.querySelector('#'+control.id);
+
+  var redrawOnChange = function (event) {
+    if (control.updater === undefined) {
+      control.updater = function (target) {
+	options[target.id] = target.valueAsNumber;
+      };
+    }
+    console.log(control.updater);
+
+    control.updater(event.target);
+    draw();
+  };
+  el.addEventListener('change', redrawOnChange, false);
 };
+
+
+// L System Drawing
 
 var degreesToRadians = function (degrees) {
   return (degrees / 180) * Math.PI;
 };
 
 var commandMap = {
-  "+": function (state) { 
-    // rotate + angle    
+  "+": function (state) {
+    // rotate + angle
     state.angle += angle;
     return state;
-  }, 
+  },
   "-": function (state) {
     // rotate - angle
     state.angle -= angle;
     return state;
-  }, 
+  },
   "X": function (state) {
     // for node rewriting do nothing
     return state;
@@ -74,6 +93,7 @@ var drawL = function (commands, context) {
 
 
 var draw = function () {
+
   var rules = [
     { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
     { from: "F", to: "FF" }
@@ -89,60 +109,81 @@ var draw = function () {
     // console.log(iterations, commands);
   }
 
-  // Account for earlier translation
-  options.context.clearRect(
-    -options.canvas.width / 2, -options.canvas.height / 2, 
-    options.canvas.width, options.canvas.height);
-  drawL(commands, options.context);  
+  options.context.clearRect(0, 0, options.canvas.width, options.canvas.height);
+
+  context.translate(options.offset.x, options.offset.y);
+
+  drawL(commands, options.context);
+
+  // Move back
+  context.translate(-options.offset.x, -options.offset.y);
 };
 
-var options = { 
-  d: 8,
+// Setup
+
+var canvas = c;
+var context = a;
+canvas.style.border = "1px";
+canvas.style.borderColor = "gray";
+canvas.style.borderStyle = "solid";
+canvas.width = 500;
+canvas.height = 500;
+
+var options = {
+  distance: 8,
   angle: 22.5,
   iterations: 0,
   axiom: "X",
-  context: a, 
-  canvas: c
-};
-
-// expose for commands
-var d = options.d; 
-var angle = options.angle;
-
-
-var redrawControl = function (id) {
-  // A number control that redraws when it changes
-  var el = document.querySelector('#'+id);  
-
-  var redrawOnChange = function (event) {
-    window[id] = options[id] = event.target.valueAsNumber;
-    draw();
-  };
-  el.addEventListener('change', redrawOnChange, false);
-};
-
-var setupControls = function () {
-  redrawControl('iterations');
-  redrawControl('d');
-  redrawControl('angle');
+  context: a,
+  canvas: c,
+  offset: {
+    x: c.width / 2,
+    y: c.height / 2
+  }
 };
 
 
-var init = function () {
-  var canvas = options.canvas;
+// expose for L System commands
+window.d = options.distance;
+window.angle = options.angle;
+
+
+var init = function (options) {
   var context = options.context;
-  canvas.style.border = "1px";
-  canvas.style.borderColor = "gray";
-  canvas.style.borderStyle = "solid";
-  canvas.width = 500;
-  canvas.height = 500;
-
-  context.translate(canvas.width / 2, canvas.height / 2);
   context.translate(0.5, 0.5); // no AA
 
-  console.log('hio', canvas.width, canvas.height);
-  setupControls();
+  var controls = [
+    { id: 'iterations' },
+    {
+      id: 'distance',
+      updater: function (target) {
+	// expose for L System commands
+	window.d = options.distance = target.valueAsNumber;
+      }
+    },
+    {
+      id: 'angle',
+      updater: function (target) {
+	// expose for L System commands
+	window.angle = options.angle = target.valueAsNumber;
+      }
+    },
+    {
+      id: 'offsetX',
+      updater: function (target) {
+	options.offset.x = (options.canvas.width / 100) * target.valueAsNumber;
+      }
+    },
+    {
+      id: 'offsetY',
+      updater: function (target) {
+	options.offset.y = (options.canvas.width / 100) * target.valueAsNumber;
+      }
+    }
+  ];
+  controls.forEach(function (control) { redrawControl(control); });
 };
 
-init();
+init(options);
+
 // end of submission //
