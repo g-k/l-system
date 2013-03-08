@@ -43,13 +43,14 @@ var commandMap = {
     // for node rewriting do nothing
     return state;
   },
-  "F": function (state, context) {
-    context.moveTo(state.x, state.y);
+  "F": function (state, context, project) {
+    context.moveTo.apply(context, project(state));
+
     // move forward
     state.x = state.x + d * Math.cos(degreesToRadians(state.angle));
     state.y = state.y + d * Math.sin(degreesToRadians(state.angle));
 
-    context.lineTo(state.x, state.y);
+    context.lineTo.apply(context, project(state));
     return state;
   },
   "[": function (state) {
@@ -71,20 +72,38 @@ var commandMap = {
   }
 };
 
-var drawL = function (commands, context) {
+var drawL = function (commands, context, project) {
   var state = {
     x: 0,
     y: 0,
+    z: 0,
     angle: 0, // direction in degrees angle from horizontal
     stack: []
   };
   context.beginPath();
+
   for (var i = 0; i < commands.length; i++) {
-    state = commandMap[commands[i]](state, context);
+    state = commandMap[commands[i]](state, context, project);
     // console.log(commands[i], state);
   }
+
   context.stroke();
 };
+
+var draw = function () {
+  options.context.clearRect(0, 0, options.canvas.width, options.canvas.height);
+
+  // Move there
+  context.translate(options.offset.x, options.offset.y);
+
+  drawL(expandCommands(options), options.context, options.project);
+
+  // Move back
+  context.translate(-options.offset.x, -options.offset.y);
+};
+
+
+// L-System
 
 var applyRule = function (commands, rule) {
   return commands.replace(new RegExp(rule.from, 'g'), rule.to);
@@ -106,59 +125,6 @@ var expandCommands = function (options) {
   return commands;
 };
 
-var draw3d = function (options) {
-  // projected on canvas x and y coordinates
-  var pX;
-  var pY;
-  var perspective = options.perspective;
-  var cameraZ = options.cameraZ;
-  var context = options.context;
-
-  var surface = function (a, b) {
-    // cylinder
-    var angle = a * Math.PI * 2,
-        radius = 100,
-        length = 400;
-
-    return {
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        z: b * length - length / 2, // by subtracting length/2 I have centered the tube at (0, 0, 0)
-        r: 0,
-        g: Math.floor(b * 255),
-        b: 0
-    };
-  };
-
-  for (var a = 0; a < 1; a += 0.001) {
-    for (var b = 0; b < 1; b += 0.01) {
-      var point = surface(a, b);
-      if (!point) {
-	continue;
-      }
-
-      pX = (point.x * perspective) / (point.z - cameraZ);
-      pY = (point.y * perspective) / (point.z - cameraZ);
-      context.fillStyle = 'rgb('+[point.r, point.g, point.b].join(',')+')';
-      context.fillRect(pX, pY, 1, 1);
-    }
-  }
-
-};
-
-
-var draw = function () {
-  options.context.clearRect(0, 0, options.canvas.width, options.canvas.height);
-
-  // Move there
-  context.translate(options.offset.x, options.offset.y);
-
-  // drawL(expandCommands(options), options.context);
-  draw3d(options);
-
-  // Move back
-  context.translate(-options.offset.x, -options.offset.y);
-};
 
 // Setup
 
@@ -187,6 +153,21 @@ var options = {
   },
   perspective: 350,
   cameraZ: -700
+};
+
+options.project = function (state) {
+  // function to project into 3D
+  var perspective = options.perspective;
+  var cameraZ = options.cameraZ;
+  var context = options.context;
+
+  // projected on canvas x and y coordinates
+  var pX = (state.x * perspective) / (state.z - cameraZ);
+  var pY = (state.y * perspective) / (state.z - cameraZ);
+
+  console.log(state.x, state.y);
+  console.log(pX, pY);
+  return [pX, pY];
 };
 
 
