@@ -111,8 +111,6 @@ var draw3d = function (options) {
   var pX;
   var pY;
   var perspective = options.perspective;
-  var halfHeight = options.canvas.height / 2;
-  var halfWidth = options.canvas.width / 2;
   var cameraZ = options.cameraZ;
   var context = options.context;
 
@@ -139,8 +137,8 @@ var draw3d = function (options) {
 	continue;
       }
 
-      pX = (point.x * perspective) / (point.z - cameraZ) + halfWidth;
-      pY = (point.y * perspective) / (point.z - cameraZ) + halfHeight;
+      pX = (point.x * perspective) / (point.z - cameraZ);
+      pY = (point.y * perspective) / (point.z - cameraZ);
       context.fillStyle = 'rgb('+[point.r, point.g, point.b].join(',')+')';
       context.fillRect(pX, pY, 1, 1);
     }
@@ -153,13 +151,13 @@ var draw = function () {
   options.context.clearRect(0, 0, options.canvas.width, options.canvas.height);
 
   // Move there
-  // context.translate(options.offset.x, options.offset.y);
+  context.translate(options.offset.x, options.offset.y);
 
   // drawL(expandCommands(options), options.context);
   draw3d(options);
 
   // Move back
-  // context.translate(-options.offset.x, -options.offset.y);
+  context.translate(-options.offset.x, -options.offset.y);
 };
 
 // Setup
