@@ -71,10 +71,6 @@ var commandMap = {
   }
 };
 
-var applyRule = function (commands, rule) {
-  return commands.replace(new RegExp(rule.from, 'g'), rule.to);
-};
-
 var drawL = function (commands, context) {
   var state = {
     x: 0,
@@ -90,6 +86,9 @@ var drawL = function (commands, context) {
   context.stroke();
 };
 
+var applyRule = function (commands, rule) {
+  return commands.replace(new RegExp(rule.from, 'g'), rule.to);
+};
 
 var expandCommands = function (options) {
   var rules = options.rules;
