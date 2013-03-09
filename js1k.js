@@ -152,7 +152,16 @@ var options = {
     y: c.height / 2
   },
   perspective: 350,
-  cameraZ: -700
+  cameraZ: -700,
+  yAxisRotation: 0
+};
+
+options.rotate = function (state) {
+  var yAxisRotation = options.yAxisRotation;
+  state.x = state.x * Math.cos(yAxisRotation) + state.z * Math.sin(yAxisRotation);
+  state.z = state.x * -Math.sin(yAxisRotation) + state.z * Math.cos(yAxisRotation);
+
+  return state;
 };
 
 options.project = function (state) {
@@ -161,12 +170,12 @@ options.project = function (state) {
   var cameraZ = options.cameraZ;
   var context = options.context;
 
+  state = options.rotate(state);
+
   // projected on canvas x and y coordinates
   var pX = (state.x * perspective) / (state.z - cameraZ);
   var pY = (state.y * perspective) / (state.z - cameraZ);
 
-  console.log(state.x, state.y);
-  console.log(pX, pY);
   return [pX, pY];
 };
 
@@ -184,6 +193,11 @@ var init = function (options) {
     { id: 'iterations' },
     { id: 'perspective' },
     { id: 'cameraZ' },
+    { id: 'yAxisRotation',
+      updater: function (target) {
+	options.yAxisRotation = degreesToRadians(target.valueAsNumber);
+      }
+    },
     {
       id: 'distance',
       updater: function (target) {
