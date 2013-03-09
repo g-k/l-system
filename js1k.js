@@ -158,10 +158,17 @@ var options = {
 
 options.rotate = function (state) {
   var yAxisRotation = options.yAxisRotation;
-  state.x = state.x * Math.cos(yAxisRotation) + state.z * Math.sin(yAxisRotation);
-  state.z = state.x * -Math.sin(yAxisRotation) + state.z * Math.cos(yAxisRotation);
+  // copy of state for drawing to not mess up the L-System
+  var drawState = {
+    x: state.x,
+    y: state.y,
+    z: state.z
+  };
 
-  return state;
+  drawState.x = state.x * Math.cos(yAxisRotation) + state.z * Math.sin(yAxisRotation);
+  drawState.z = state.x * -Math.sin(yAxisRotation) + state.z * Math.cos(yAxisRotation);
+
+  return drawState;
 };
 
 options.project = function (state) {
