@@ -2,6 +2,34 @@
 // SCRIPT
 // Can use web workers http://caniuse.com/#search=web%20worker
 
+// Utils
+
+var copy = function (obj1, obj2) {
+  // copy properties from obj2 to obj1
+  var has = Object.prototype.hasOwnProperty;
+  var property;
+
+  for (property in obj2) {
+    if (has.call(obj2, property)) {
+      obj1[property] = obj2[property];
+    }
+  }
+  return obj1;
+};
+
+var degreesToRadians = function (degrees) {
+  return (degrees / 180) * Math.PI;
+};
+
+var dotProduct = function (v1, v2) {
+    var sum = 0;
+    for (var i = 0; i < 3; i++) {
+      sum += v1[i] * v2[i];
+    }
+    return sum;
+};
+
+
 // Tool UI
 
 var redrawControl = function (control) {
@@ -24,31 +52,78 @@ var redrawControl = function (control) {
 
 // L System Drawing
 
-var degreesToRadians = function (degrees) {
-  return (degrees / 180) * Math.PI;
+var rotator = function (direction, angle) {
+  var sin = Math.sin;
+  var cos = Math.cos;
+  var rotationMatrices = {
+    U: {
+      x: [cos(angle), sin(angle), 0],
+      y: [-sin(angle), cos(angle), 0],
+      z: [0, 0, 1]
+    },
+    L: {
+      x: [cos(angle), 0, -sin(angle)],
+      y: [0, 1, 0],
+      z: [sin(angle), 0, cos(angle)]
+    },
+    H: {
+      x: [1, 0, 0],
+      y: [0, cos(angle), -sin(angle)],
+      z: [0, sin(angle), cos(angle)]
+    }
+  };
+
+  return function (state) {
+    var R = rotationMatrices[direction];
+    var orientation = [state.heading, state.up, state.left];
+
+    var newState = {
+      heading: dotProduct(orientation, R.x),
+      up: dotProduct(orientation, R.y),
+      left: dotProduct(orientation, R.z)
+    };
+
+    return copy(state, newState);
+  };
 };
+
 
 var commandMap = {
   "+": function (state) {
-    // rotate + angle
-    state.angle += angle;
-    return state;
+    // turn left by angle
+    return rotator('U', degreesToRadians(window.angle))(state);
   },
   "-": function (state) {
-    // rotate - angle
-    state.angle -= angle;
-    return state;
+    // turn right by angle
+    return rotator('U', degreesToRadians(-window.angle))(state);
   },
-  "X": function (state) {
-    // for node rewriting do nothing
-    return state;
+  "|": function (state) {
+    // turn around by angle
+    return rotator('U', degreesToRadians(180))(state);
+  },
+  "&": function (state) {
+    // pitch down by angle
+    return rotator('L', degreesToRadians(window.angle))(state);
+  },
+  "^": function (state) {
+    // pitch up by angle
+    return rotator('L', degreesToRadians(-window.angle))(state);
+  },
+  "\\": function (state) {
+    // roll left by angle
+    return rotator('H', degreesToRadians(window.angle))(state);
+  },
+  "/": function (state) {
+    // roll right by angle
+    return rotator('H', degreesToRadians(-window.angle))(state);
   },
   "F": function (state, context, project) {
     context.moveTo.apply(context, project(state));
 
-    // move forward
-    state.x = state.x + d * Math.cos(degreesToRadians(state.angle));
-    state.y = state.y + d * Math.sin(degreesToRadians(state.angle));
+    // move forward in direction
+    state.x = state.x + d * state.heading;
+    state.y = state.y + d * state.up;
+    state.z = state.z + d * state.left;
 
     context.lineTo.apply(context, project(state));
     return state;
@@ -58,26 +133,37 @@ var commandMap = {
     state.stack.push({
       x: state.x,
       y: state.y,
-      angle: state.angle
+      z: state.z,
+      heading: state.heading,
+      up: state.up,
+      left: state.left
     });
     return state;
   },
   "]": function (state) {
     // pop from stack
-    var newState = state.stack.pop();
-    state.x = newState.x;
-    state.y = newState.y;
-    state.angle = newState.angle;
-    return state;
+    return copy(state, state.stack.pop());
   }
 };
+
+var nullCommands = ['A', 'B', 'C', 'D', 'X'];
+var doNothing = function (state) {
+  // for node rewriting do nothing
+  return state;
+};
+for (var i = 0; i < nullCommands.length; i++) {
+  commandMap[nullCommands[i]] = doNothing;
+};
+
 
 var drawL = function (commands, context, project) {
   var state = {
     x: 0,
     y: 0,
     z: 0,
-    angle: 0, // direction in degrees angle from horizontal
+    heading: 1, // direction in degrees angle from horizontal
+    left: 1,    // degrees from
+    up: 1,
     stack: []
   };
   context.beginPath();
@@ -138,12 +224,14 @@ canvas.height = 500;
 
 var options = {
   distance: 8,
-  angle: 22.5,
+  angle: 90,
   iterations: 0,
-  axiom: "X",
+  axiom: "A",
   rules: [
-    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
-    { from: "F", to: "FF" }
+    { from: "A", to: "B-F+CFC+F-D&F^D-F+&&CFC+F+B//" },
+    { from: "B", to: "A&F^CFB^F^D^^-F-D^|F^B|FC^F^A//" },
+    { from: "C", to: "|D^|F^B-F+C^F^A&&FA&F^C+F+B^F^D//" },
+    { from: "D", to: "|CFB-F+B|FA&F^A&&FB-F+B|FC//" }
   ],
   context: a,
   canvas: c,
