@@ -32,21 +32,56 @@ var dotProduct = function (v1, v2) {
 
 // Tool UI
 
-var redrawControl = function (control) {
-  // A number control that redraws when it changes
-  var el = document.querySelector('#'+control.id);
+window.onload = function () {
+  var gui = new dat.GUI();
 
-  var redrawOnChange = function (event) {
-    if (control.updater === undefined) {
-      control.updater = function (target) {
-	options[target.id] = target.valueAsNumber;
-      };
-    }
-
-    control.updater(event.target);
+  var setPropertyInRadiansAndRedraw = function (value) {
+    options[this.property] = degreesToRadians(value);
     draw();
   };
-  el.addEventListener('change', redrawOnChange, false);
+
+  gui.add(options, 'axiom')
+    .onChange(draw);
+
+  gui.add(options, 'iterations', 0, 5)
+    .step(1)
+    .onChange(draw);
+
+  gui.add(options, 'distance', 0, 25)
+    .step(3)
+    .onChange(function (value) {
+      // expose for L System commands
+      window.d = options.distance = value;
+      draw();
+    });
+
+  gui.add(options, 'angle', 0, 360)
+    .step(5)
+    .onChange(function (value) {
+      // expose for L System commands
+      window.angle = options.angle = value;
+      draw();
+    });
+
+  gui.add(options.offset, 'x', 0, options.canvas.width)
+    .step(5)
+    .onChange(draw);
+
+  gui.add(options.offset, 'y', 0, options.canvas.height)
+    .step(5)
+    .onChange(draw);
+
+  gui.add(options, 'perspective', 0, 1500)
+    .step(50)
+    .onChange(draw);
+
+  gui.add(options, 'cameraZ', -1000, 1000)
+    .step(100)
+    .onChange(draw);
+
+  gui.add(options, 'yAxisRotation', 0, 360)
+    .step(10)
+    .onChange(setPropertyInRadiansAndRedraw);
 };
 
 
@@ -225,7 +260,7 @@ canvas.height = 500;
 var options = {
   distance: 8,
   angle: 90,
-  iterations: 0,
+  iterations: 1,
   axiom: "A",
   rules: [
     { from: "A", to: "B-F+CFC+F-D&F^D-F+&&CFC+F+B//" },
@@ -279,52 +314,6 @@ options.project = function (state) {
 window.d = options.distance;
 window.angle = options.angle;
 
-
-var init = function (options) {
-  var context = options.context;
-  context.translate(0.5, 0.5); // no AA
-
-  var controls = [
-    { id: 'iterations' },
-    { id: 'perspective' },
-    { id: 'cameraZ' },
-    { id: 'yAxisRotation',
-      updater: function (target) {
-	options.yAxisRotation = degreesToRadians(target.valueAsNumber);
-      }
-    },
-    {
-      id: 'distance',
-      updater: function (target) {
-	// expose for L System commands
-	window.d = options.distance = target.valueAsNumber;
-      }
-    },
-    {
-      id: 'angle',
-      updater: function (target) {
-	// expose for L System commands
-	window.angle = options.angle = target.valueAsNumber;
-      }
-    },
-    {
-      id: 'offsetX',
-      updater: function (target) {
-	options.offset.x = (options.canvas.width / 100) * target.valueAsNumber;
-      }
-    },
-    {
-      id: 'offsetY',
-      updater: function (target) {
-	options.offset.y = (options.canvas.width / 100) * target.valueAsNumber;
-      }
-    }
-  ];
-  controls.forEach(function (control) { redrawControl(control); });
-
-  draw();
-};
-
-init(options);
-
+options.context.translate(0.5, 0.5); // no AA
+draw();
 // end of submission //

@@ -6,48 +6,13 @@
     </head>
   <body>
     <canvas id="c"></canvas>
-    <div id="controls">
-      <label>
-	Iterations: <input id="iterations" type="number" value="0">
-      </label>
-      <br>
-      <label>
-	Distance: <input id="distance" type="number" value="8">
-      </label>
-      <br>
-      <label>
-	Angle (degrees): <input id="angle" type="number" value="22.5">
-      </label>
-      <br>
-      <label>
-	OffsetX (% of canvas): <input id="offsetX" type="number" value="50">
-      </label>
-      <br>
-      <label>
-	OffsetY (% of canvas): <input id="offsetY" type="number" value="50">
-      </label>
-
-      <br>
-      <label>
-	Perspective (pixels?): <input id="perspective" type="number" value="350">
-      </label>
-      <br>
-      <label>
-	Camera Z (pixels?): <input id="cameraZ" type="number" value="-700">
-      </label>
-      <br>
-      <label>
-	Y Axis rotation (degrees): <input id="yAxisRotation" type="number" value="0">
-      </label>
-
-
-    </div>
     <script>
       var b = document.body;
       var c = document.getElementsByTagName('canvas')[0];
       var a = c.getContext('2d');
       document.body.clientWidth; // fix bug in webkit: http://qfox.nl/weblog/218
     </script>
+    <script src="dat.gui.js"></script>
     <script src="js1k.js"></script>
     </body>
 </html>
