@@ -25,18 +25,10 @@ var degreesToRadians = function (degrees) {
   return (degrees / 180) * Math.PI;
 };
 
-var dotProduct = function (v1, v2) {
-    var sum = 0;
-    for (var i = 0; i < 3; i++) {
-      sum += v1[i] * v2[i];
-    }
-    return sum;
-};
-
 
 // Tool UI
 
-window.onload = function () {
+var init = function () {
   var gui = new dat.GUI();
 
   gui.add(options, 'axiom')
@@ -48,19 +40,11 @@ window.onload = function () {
 
   gui.add(options, 'distance', 0, 25)
     .step(3)
-    .onChange(function (value) {
-      // expose for L System commands
-      window.d = options.distance = value;
-      draw();
-    });
+    .onChange(draw);
 
   gui.add(options, 'angle', 0, 360)
     .step(5)
-    .onChange(function (value) {
-      // expose for L System commands
-      window.options.angle = value;
-      draw();
-    });
+    .onChange(draw);
 
   gui.add(options.offset, 'x', 0, options.canvas.width)
     .step(5)
@@ -81,7 +65,12 @@ window.onload = function () {
   gui.add(options, 'yAxisRotation', 0, Math.PI*2)
     .step(0.1)
     .onChange(draw);
+
+  window.options.context.translate(0.5, 0.5); // no AA
+  draw();
 };
+
+document.addEventListener('DOMContentLoaded', init, false);
 
 
 // L System Drawing
@@ -97,6 +86,7 @@ var commandMap = {
     state.angle -= options.angle;
     return state;
   },
+
   "|": function (state) {
     // turn around by angle
     state.angle += degreesToRadians(180);
@@ -121,8 +111,10 @@ var commandMap = {
     // return rotator('H', degreesToRadians(-window.angle))(state);
     return state;
   },
+
   "F": function (state, context, project) {
     context.moveTo.apply(context, project(state));
+    var d = window.options.distance;
 
     // move forward in direction
     state.x = state.x + d * Math.cos(degreesToRadians(state.angle));
@@ -170,7 +162,6 @@ var drawL = function (commands, context, project) {
 
   for (var i = 0; i < commands.length; i++) {
     state = commandMap[commands[i]](state, context, project);
-
     // console.log(commands[i], state);
   }
 
@@ -192,11 +183,10 @@ var draw = function () {
 
 // L-System
 
-var applyRule = function (commands, rule) {
-  return commands.replace(new RegExp(rule.from, 'g'), rule.to);
-};
-
 var expandCommands = function (options) {
+  var applyRule = function (commands, rule) {
+    return commands.replace(new RegExp(rule.from, 'g'), rule.to);
+  };
   var rules = options.rules;
   var iterations = options.iterations;
   var commands = options.axiom;
@@ -213,7 +203,7 @@ var expandCommands = function (options) {
 };
 
 
-// Setup
+// Options and Canvas Setup
 
 var canvas = c;
 var context = a;
@@ -224,7 +214,6 @@ canvas.width = 500;
 canvas.height = 500;
 
 var options = {
-  debug: false,
   distance: 8,
   iterations: 1,
   context: a,
@@ -238,7 +227,37 @@ var options = {
   yAxisRotation: 0
 };
 
+options.rotateY = function (state) {
+  var yAxisRotation = options.yAxisRotation;
+  // copy of state for drawing to not mess up the L-System
+  var drawState = {
+    x: state.x,
+    y: state.y,
+    z: state.z
+  };
 
+  drawState.x = state.x * Math.cos(yAxisRotation) + state.z * Math.sin(yAxisRotation);
+  drawState.z = state.x * -Math.sin(yAxisRotation) + state.z * Math.cos(yAxisRotation);
+
+  return drawState;
+};
+
+options.project = function (state) {
+  // function to project into 3D
+  var perspective = options.perspective;
+  var cameraZ = options.cameraZ;
+  var context = options.context;
+
+  state = options.rotateY(state);
+
+  // projected on canvas x and y coordinates
+  var pX = (state.x * perspective) / (state.z - cameraZ);
+  var pY = (state.y * perspective) / (state.z - cameraZ);
+
+  return [pX, pY];
+};
+
+// ABOP 1.19
 var hilbertCurve3d = {
   angle: 90,
   axiom: "A",
@@ -262,41 +281,4 @@ var plant2d = {
 
 options = copy(options, plant2d);
 
-options.rotateY = function (state) {
-  var yAxisRotation = options.yAxisRotation;
-  // copy of state for drawing to not mess up the L-System
-  var drawState = {
-    x: state.x,
-    y: state.y,
-    z: state.z
-  };
-
-  drawState.x = state.x * Math.cos(yAxisRotation) + state.z * Math.sin(yAxisRotation);
-  drawState.z = state.x * -Math.sin(yAxisRotation) + state.z * Math.cos(yAxisRotation);
-
-  return drawState;
-};
-
-
-options.project = function (state) {
-  // function to project into 3D
-  var perspective = options.perspective;
-  var cameraZ = options.cameraZ;
-  var context = options.context;
-
-  state = options.rotateY(state);
-
-  // projected on canvas x and y coordinates
-  var pX = (state.x * perspective) / (state.z - cameraZ);
-  var pY = (state.y * perspective) / (state.z - cameraZ);
-
-  return [pX, pY];
-};
-
-
-// expose for L System commands
-window.d = options.distance;
-
-options.context.translate(0.5, 0.5); // no AA
-draw();
 // end of submission //
