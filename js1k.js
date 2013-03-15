@@ -4,6 +4,10 @@
 
 // Utils
 
+// TODO: don't redraw everything on rescale
+// (save image data and rescale)
+
+
 var copy = function (obj1, obj2) {
   // copy properties from obj2 to obj1
   var has = Object.prototype.hasOwnProperty;
@@ -35,11 +39,6 @@ var dotProduct = function (v1, v2) {
 window.onload = function () {
   var gui = new dat.GUI();
 
-  var setPropertyInRadiansAndRedraw = function (value) {
-    options[this.property] = degreesToRadians(value);
-    draw();
-  };
-
   gui.add(options, 'axiom')
     .onChange(draw);
 
@@ -59,7 +58,7 @@ window.onload = function () {
     .step(5)
     .onChange(function (value) {
       // expose for L System commands
-      window.angle = options.angle = value;
+      window.options.angle = value;
       draw();
     });
 
@@ -79,86 +78,56 @@ window.onload = function () {
     .step(100)
     .onChange(draw);
 
-  gui.add(options, 'yAxisRotation', 0, 360)
-    .step(10)
-    .onChange(setPropertyInRadiansAndRedraw);
+  gui.add(options, 'yAxisRotation', 0, Math.PI*2)
+    .step(0.1)
+    .onChange(draw);
 };
 
 
 // L System Drawing
 
-var rotator = function (direction, angle) {
-  var sin = Math.sin;
-  var cos = Math.cos;
-  var rotationMatrices = {
-    U: {
-      x: [cos(angle), sin(angle), 0],
-      y: [-sin(angle), cos(angle), 0],
-      z: [0, 0, 1]
-    },
-    L: {
-      x: [cos(angle), 0, -sin(angle)],
-      y: [0, 1, 0],
-      z: [sin(angle), 0, cos(angle)]
-    },
-    H: {
-      x: [1, 0, 0],
-      y: [0, cos(angle), -sin(angle)],
-      z: [0, sin(angle), cos(angle)]
-    }
-  };
-
-  return function (state) {
-    var R = rotationMatrices[direction];
-    var orientation = [state.heading, state.up, state.left];
-
-    var newState = {
-      heading: dotProduct(orientation, R.x),
-      up: dotProduct(orientation, R.y),
-      left: dotProduct(orientation, R.z)
-    };
-
-    return copy(state, newState);
-  };
-};
-
-
 var commandMap = {
   "+": function (state) {
     // turn left by angle
-    return rotator('U', degreesToRadians(window.angle))(state);
+    state.angle += options.angle;
+    return state;
   },
   "-": function (state) {
     // turn right by angle
-    return rotator('U', degreesToRadians(-window.angle))(state);
+    state.angle -= options.angle;
+    return state;
   },
   "|": function (state) {
     // turn around by angle
-    return rotator('U', degreesToRadians(180))(state);
+    state.angle += degreesToRadians(180);
   },
   "&": function (state) {
     // pitch down by angle
-    return rotator('L', degreesToRadians(window.angle))(state);
+    // return rotator('L', degreesToRadians(window.angle))(state);
+    return state;
   },
   "^": function (state) {
     // pitch up by angle
-    return rotator('L', degreesToRadians(-window.angle))(state);
+    // return rotator('L', degreesToRadians(-window.angle))(state);
+    return state;
   },
   "\\": function (state) {
     // roll left by angle
-    return rotator('H', degreesToRadians(window.angle))(state);
+    // return rotator('H', degreesToRadians(window.angle))(state);
+    return state;
   },
   "/": function (state) {
     // roll right by angle
-    return rotator('H', degreesToRadians(-window.angle))(state);
+    // return rotator('H', degreesToRadians(-window.angle))(state);
+    return state;
   },
   "F": function (state, context, project) {
     context.moveTo.apply(context, project(state));
 
     // move forward in direction
-    state.x = state.x + d * state.heading;
-    state.y = state.y + d * state.up;
-    state.z = state.z + d * state.left;
+    state.x = state.x + d * Math.cos(degreesToRadians(state.angle));
+    state.y = state.y + d * Math.sin(degreesToRadians(state.angle));
+    // state.z = state.z; // + d * state.left;
 
     context.lineTo.apply(context, project(state));
     return state;
@@ -168,10 +137,8 @@ var commandMap = {
     state.stack.push({
       x: state.x,
       y: state.y,
-      z: state.z,
-      heading: state.heading,
-      up: state.up,
-      left: state.left
+      // z: state.z,
+      angle: state.angle
     });
     return state;
   },
@@ -196,15 +163,14 @@ var drawL = function (commands, context, project) {
     x: 0,
     y: 0,
     z: 0,
-    heading: 1, // direction in degrees angle from horizontal
-    left: 1,    // degrees from
-    up: 1,
+    angle: 0,
     stack: []
   };
   context.beginPath();
 
   for (var i = 0; i < commands.length; i++) {
     state = commandMap[commands[i]](state, context, project);
+
     // console.log(commands[i], state);
   }
 
@@ -258,16 +224,9 @@ canvas.width = 500;
 canvas.height = 500;
 
 var options = {
+  debug: false,
   distance: 8,
-  angle: 90,
   iterations: 1,
-  axiom: "A",
-  rules: [
-    { from: "A", to: "B-F+CFC+F-D&F^D-F+&&CFC+F+B//" },
-    { from: "B", to: "A&F^CFB^F^D^^-F-D^|F^B|FC^F^A//" },
-    { from: "C", to: "|D^|F^B-F+C^F^A&&FA&F^C+F+B^F^D//" },
-    { from: "D", to: "|CFB-F+B|FA&F^A&&FB-F+B|FC//" }
-  ],
   context: a,
   canvas: c,
   offset: {
@@ -279,7 +238,31 @@ var options = {
   yAxisRotation: 0
 };
 
-options.rotate = function (state) {
+
+var hilbertCurve3d = {
+  angle: 90,
+  axiom: "A",
+  rules: [
+    { from: "A", to: "B-F+CFC+F-D&F^D-F+&&CFC+F+B//" },
+    { from: "B", to: "A&F^CFB^F^D^^-F-D^|F^B|FC^F^A//" },
+    { from: "C", to: "|D^|F^B-F+C^F^A&&FA&F^C+F+B^F^D//" },
+    { from: "D", to: "|CFB-F+B|FA&F^A&&FB-F+B|FC//" }
+  ]
+};
+
+// ABOP 1.24 F
+var plant2d = {
+  angle: 22.5,
+  axiom: 'X',
+  rules: [
+    { from: "X", to: "F-[[X]+X]+F[+FX]-X" },
+    { from: "F", to: "FF" }
+  ]
+};
+
+options = copy(options, plant2d);
+
+options.rotateY = function (state) {
   var yAxisRotation = options.yAxisRotation;
   // copy of state for drawing to not mess up the L-System
   var drawState = {
@@ -294,13 +277,14 @@ options.rotate = function (state) {
   return drawState;
 };
 
+
 options.project = function (state) {
   // function to project into 3D
   var perspective = options.perspective;
   var cameraZ = options.cameraZ;
   var context = options.context;
 
-  state = options.rotate(state);
+  state = options.rotateY(state);
 
   // projected on canvas x and y coordinates
   var pX = (state.x * perspective) / (state.z - cameraZ);
@@ -312,7 +296,6 @@ options.project = function (state) {
 
 // expose for L System commands
 window.d = options.distance;
-window.angle = options.angle;
 
 options.context.translate(0.5, 0.5); // no AA
 draw();
